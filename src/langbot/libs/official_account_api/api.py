@@ -241,6 +241,18 @@ class OAClient:
                 base64_str = base64.b64encode(voice_bytes).decode('utf-8')
                 return base64_str, audio_format
 
+    async def query_voice_recognition(self, voice_id: str, lang: str = 'zh_CN') -> str:
+        if not await self.check_access_token():
+            await self.get_access_token()
+        url = f'{self.base_url}/cgi-bin/media/voice/queryrecoresultfortext?access_token={self.access_token}&voice_id={voice_id}&lang={lang}'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                data = await response.json(content_type=None)
+                if data.get('errcode', 0) != 0:
+                    await self.logger.error(f'Voice recognition query failed: {data}')
+                    return ''
+                return data.get('result', '')
+
 
 class OAClientForLongerResponse:
     def __init__(
@@ -464,3 +476,16 @@ class OAClientForLongerResponse:
                 audio_format = content_type.split('/')[-1]
                 base64_str = base64.b64encode(voice_bytes).decode('utf-8')
                 return base64_str, audio_format
+
+    async def query_voice_recognition(self, voice_id: str, lang: str = 'zh_CN') -> str:
+        if not await self.check_access_token():
+            await self.get_access_token()
+        url = f'{self.base_url}/cgi-bin/media/voice/queryrecoresultfortext?access_token={self.access_token}&voice_id={voice_id}&lang={lang}'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                data = await response.json(content_type=None)
+                if data.get('errcode', 0) != 0:
+                    await self.logger.error(f'Voice recognition query failed: {data}')
+                    return ''
+                return data.get('result', '')
+

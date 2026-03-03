@@ -63,8 +63,14 @@ class OAEventConverter(abstract_platform_adapter.AbstractEventConverter):
 
         yiri_msg_list = [platform_message.Source(id=event.message_id, time=datetime.datetime.now())]
 
-        if event.recognition:
-            yiri_msg_list.append(platform_message.Plain(text=event.recognition))
+        # Prefer recognition text already embedded in the message
+        recognized_text = event.recognition
+        # If not available, query the recognition API using the media_id as voice_id
+        if not recognized_text and event.media_id:
+            recognized_text = await bot.query_voice_recognition(event.media_id)
+
+        if recognized_text:
+            yiri_msg_list.append(platform_message.Plain(text=recognized_text))
         elif event.media_id:
             base64_str, audio_format = await bot.download_voice_as_base64(event.media_id)
             yiri_msg_list.append(
