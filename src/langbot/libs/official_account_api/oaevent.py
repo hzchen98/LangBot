@@ -115,6 +115,26 @@ class OAEvent(dict):
         return self.get('MediaId')
 
     @property
+    def format(self) -> Optional[str]:
+        """
+        Voice message format, e.g. "amr", "speex". Only present in voice messages.
+
+        Returns:
+            Optional[str]: Voice format.
+        """
+        return self.get('Format')
+
+    @property
+    def recognition(self) -> Optional[str]:
+        """
+        Voice recognition text. Only present in voice messages when voice recognition is enabled.
+
+        Returns:
+            Optional[str]: Recognized speech text.
+        """
+        return self.get('Recognition')
+
+    @property
     def timestamp(self) -> Optional[int]:
         """
         事件发生的时间戳。

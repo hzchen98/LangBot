@@ -1,9 +1,9 @@
 from __future__ import annotations
 import typing
 import asyncio
+import datetime
 import traceback
 import pydantic
-import datetime
 import langbot_plugin.api.definition.abstract.platform.adapter as abstract_platform_adapter
 from langbot.libs.official_account_api.oaevent import OAEvent
 from langbot.libs.official_account_api.api import OAClient
@@ -52,6 +52,32 @@ class OAEventConverter(abstract_platform_adapter.AbstractEventConverter):
             )
         else:
             return None
+
+    @staticmethod
+    async def target2yiri_voice(event: OAEvent, bot: typing.Union[OAClient, OAClientForLongerResponse]):
+        friend = platform_entities.Friend(
+            id=event.user_id,
+            nickname=str(event.user_id),
+            remark='',
+        )
+
+        yiri_msg_list = [platform_message.Source(id=event.message_id, time=datetime.datetime.now())]
+
+        if event.recognition:
+            yiri_msg_list.append(platform_message.Plain(text=event.recognition))
+        elif event.media_id:
+            base64_str, audio_format = await bot.download_voice_as_base64(event.media_id)
+            yiri_msg_list.append(
+                platform_message.Voice(base64=f'data:audio/{audio_format};base64,{base64_str}')
+            )
+
+        chain = platform_message.MessageChain(yiri_msg_list)
+        return platform_events.FriendMessage(
+            sender=friend,
+            message_chain=chain,
+            time=event.timestamp,
+            source_platform_object=event,
+        )
 
 
 class OfficialAccountAdapter(abstract_platform_adapter.AbstractMessagePlatformAdapter):
@@ -131,8 +157,17 @@ class OfficialAccountAdapter(abstract_platform_adapter.AbstractMessagePlatformAd
             except Exception:
                 await self.logger.error(f'Error in officialaccount callback: {traceback.format_exc()}')
 
+        async def on_voice_message(event: OAEvent):
+            self.bot_account_id = event.receiver_id
+            try:
+                platform_event = await OAEventConverter.target2yiri_voice(event, self.bot)
+                return await callback(platform_event, self)
+            except Exception:
+                await self.logger.error(f'Error in officialaccount voice callback: {traceback.format_exc()}')
+
         if event_type == platform_events.FriendMessage:
             self.bot.on_message('text')(on_message)
+            self.bot.on_message('voice')(on_voice_message)
         elif event_type == platform_events.GroupMessage:
             pass
 
