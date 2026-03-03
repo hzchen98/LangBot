@@ -81,7 +81,7 @@ metadata:
   name: langbot-config
   namespace: langbot
 data:
-  TZ: "Asia/Shanghai"
+  TZ: "Europe/Madrid"
   PLUGIN__RUNTIME_WS_URL: "ws://langbot-plugin-runtime:5400/control/ws"
 
 ---
@@ -316,35 +316,102 @@ spec:
     name: webhook-2290
 
 ---
-# Ingress for external access (Optional - requires Ingress Controller)
-# Uncomment and modify the following section if you want to expose LangBot via Ingress
-# apiVersion: networking.k8s.io/v1
-# kind: Ingress
-# metadata:
-#   name: langbot-ingress
-#   namespace: langbot
-#   annotations:
-#     # Uncomment and modify based on your ingress controller
-#     # nginx.ingress.kubernetes.io/rewrite-target: /
-#     # cert-manager.io/cluster-issuer: letsencrypt-prod
-# spec:
-#   ingressClassName: nginx  # Change based on your ingress controller
-#   rules:
-#   - host: langbot.yourdomain.com  # Change to your domain
-#     http:
-#       paths:
-#       - path: /
-#         pathType: Prefix
-#         backend:
-#           service:
-#             name: langbot
-#             port:
-#               number: 5300
-#   # Uncomment for TLS/HTTPS
-#   # tls:
-#   # - hosts:
-#   #   - langbot.yourdomain.com
-#   #   secretName: langbot-tls
+# ConfigMap for verification content
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langbot-verify-content
+  namespace: langbot
+data:
+  WW_verify_P6iVrr4i9LO5e7sM.txt: "P6iVrr4i9LO5e7sM"
+
+---
+# Deployment for verification server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langbot-verify-server
+  namespace: langbot
+  labels:
+    app: langbot-verify-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langbot-verify-server
+  template:
+    metadata:
+      labels:
+        app: langbot-verify-server
+    spec:
+      containers:
+      - name: verify-server
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: verify-content
+          mountPath: /usr/share/nginx/html
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: verify-content
+        configMap:
+          name: langbot-verify-content
+
+---
+# Service for verification server
+apiVersion: v1
+kind: Service
+metadata:
+  name: langbot-verify-server
+  namespace: langbot
+  labels:
+    app: langbot-verify-server
+spec:
+  type: ClusterIP
+  selector:
+    app: langbot-verify-server
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+
+---
+# HTTPS Ingress for LangBot main service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  name: langbot
+  namespace: langbot
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - langbot.viajesdespejado.com
+      secretName: langbot-tls
+  rules:
+    - host: langbot.viajesdespejado.com
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: langbot
+                port:
+                  number: 5300
 
 ---
 # Service for LangBot with LoadBalancer (Alternative to Ingress)
