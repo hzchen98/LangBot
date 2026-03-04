@@ -170,7 +170,7 @@ class OAClient:
         }
 
         if message_data['MsgType'] == 'voice':
-            await self.logger.info(f"收到语音消息，{root.find('Recognition').text}")
+            await self.logger.info(f"收到语音消息，{xml_msg}")
             message_data["Content"] = root.find('Recognition').text if root.find('Recognition') is not None else ''
             message_data["MsgType"] = 'text'
 
