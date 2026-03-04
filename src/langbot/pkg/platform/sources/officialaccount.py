@@ -64,13 +64,16 @@ class OAEventConverter(abstract_platform_adapter.AbstractEventConverter):
                 # Use speech recognition result as plain text
                 yiri_msg_list.append(platform_message.Plain(text=event.recognition))
             elif bot is not None and event.media_id:
-                # Download voice file and encode as base64
+                # Download voice file and send as File message
                 try:
                     voice_bytes = await bot.download_voice(event.media_id)
                     audio_fmt = event.format.lower() if event.format else 'amr'
                     voice_b64 = base64.b64encode(voice_bytes).decode('utf-8')
                     yiri_msg_list.append(
-                        platform_message.Voice(base64=f'data:audio/{audio_fmt};base64,{voice_b64}')
+                        platform_message.File(
+                            base64=f'data:audio/{audio_fmt};base64,{voice_b64}',
+                            name=f'{event.media_id}.{audio_fmt}',
+                        )
                     )
                 except Exception:
                     traceback.print_exc()
