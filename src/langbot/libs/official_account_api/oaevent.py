@@ -117,7 +117,7 @@ class OAEvent(dict):
     @property
     def format(self) -> Optional[str]:
         """
-        Voice message format, e.g. "amr", "speex". Only present in voice messages.
+        Voice format, only present in voice messages, e.g., "amr", "speex".
 
         Returns:
             Optional[str]: Voice format.
@@ -127,10 +127,10 @@ class OAEvent(dict):
     @property
     def recognition(self) -> Optional[str]:
         """
-        Voice recognition text. Only present in voice messages when voice recognition is enabled.
+        Speech recognition result text, only present when speech recognition is enabled.
 
         Returns:
-            Optional[str]: Recognized speech text.
+            Optional[str]: Speech recognition result.
         """
         return self.get('Recognition')
 
