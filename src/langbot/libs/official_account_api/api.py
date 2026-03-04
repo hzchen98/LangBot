@@ -170,9 +170,11 @@ class OAClient:
         }
 
         if message_data['MsgType'] == 'voice':
-            message_data['MediaId'] = root.find('MediaId').text if root.find('MediaId') is not None else None
-            message_data['Format'] = root.find('Format').text if root.find('Format') is not None else None
-            message_data['Recognition'] = root.find('Recognition').text if root.find('Recognition') is not None else None
+            message_data["Content"] = await self.query_voice_recognition(root.find('MediaId').text, lang='zh_CN')
+            message_data["MsgType"] = 'text'
+            # message_data['MediaId'] = root.find('MediaId').text if root.find('MediaId') is not None else None
+            # message_data['Format'] = root.find('Format').text if root.find('Format') is not None else None
+            # message_data['Recognition'] = root.find('Recognition').text if root.find('Recognition') is not None else None
 
         return message_data
 
@@ -403,9 +405,11 @@ class OAClientForLongerResponse:
         }
 
         if message_data['MsgType'] == 'voice':
-            message_data['MediaId'] = root.find('MediaId').text if root.find('MediaId') is not None else None
-            message_data['Format'] = root.find('Format').text if root.find('Format') is not None else None
-            message_data['Recognition'] = root.find('Recognition').text if root.find('Recognition') is not None else None
+            message_data["Content"] = await self.query_voice_recognition(root.find('MediaId').text, lang='zh_CN')
+            message_data["MsgType"] = 'text'
+            # message_data['MediaId'] = root.find('MediaId').text if root.find('MediaId') is not None else None
+            # message_data['Format'] = root.find('Format').text if root.find('Format') is not None else None
+            # message_data['Recognition'] = root.find('Recognition').text if root.find('Recognition') is not None else None
 
         return message_data
 
