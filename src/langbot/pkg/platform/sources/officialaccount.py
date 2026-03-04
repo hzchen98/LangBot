@@ -66,13 +66,11 @@ class OAEventConverter(abstract_platform_adapter.AbstractEventConverter):
             elif bot is not None and event.media_id:
                 # Download voice file and send as File message
                 try:
-                    voice_bytes = await bot.download_voice(event.media_id)
-                    audio_fmt = event.format.lower() if event.format else 'amr'
-                    voice_b64 = base64.b64encode(voice_bytes).decode('utf-8')
+                    voice_url = await bot.build_download_voice_url(event.media_id)
                     yiri_msg_list.append(
                         platform_message.File(
-                            base64=f'data:audio/{audio_fmt};base64,{voice_b64}',
-                            name=f'{event.media_id}.{audio_fmt}',
+                            name="voice.amr",
+                            url=voice_url,
                         )
                     )
                 except Exception:

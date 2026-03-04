@@ -193,6 +193,12 @@ class OAClient:
                 self.access_token_expiry_time = time.time() + data['expires_in'] - 60
                 return self.access_token
 
+    async def build_download_voice_url(self, media_id: str) -> str:
+        """构建下载语音文件的 URL，供前端直接下载使用。"""
+        access_token = await self.get_access_token()
+        url = f'{self.base_url}/cgi-bin/media/get?access_token={access_token}&media_id={media_id}'
+        return url
+
     async def download_voice(self, media_id: str) -> bytes:
         """Download voice media file and return raw bytes."""
         access_token = await self.get_access_token()
