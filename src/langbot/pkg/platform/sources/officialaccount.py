@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing
 import asyncio
+import base64
 import traceback
 import pydantic
 import datetime
@@ -34,7 +35,7 @@ class OAMessageConverter(abstract_platform_adapter.AbstractMessageConverter):
 
 class OAEventConverter(abstract_platform_adapter.AbstractEventConverter):
     @staticmethod
-    async def target2yiri(event: OAEvent):
+    async def target2yiri(event: OAEvent, bot: typing.Union[OAClient, OAClientForLongerResponse] = None):
         if event.type == 'text':
             yiri_chain = await OAMessageConverter.target2yiri(event.message, event.message_id)
 
@@ -43,6 +44,44 @@ class OAEventConverter(abstract_platform_adapter.AbstractEventConverter):
                 nickname=str(event.user_id),
                 remark='',
             )
+
+            return platform_events.FriendMessage(
+                sender=friend,
+                message_chain=yiri_chain,
+                time=event.timestamp,
+                source_platform_object=event,
+            )
+        elif event.type == 'voice':
+            friend = platform_entities.Friend(
+                id=event.user_id,
+                nickname=str(event.user_id),
+                remark='',
+            )
+
+            yiri_msg_list = [platform_message.Source(id=event.message_id, time=datetime.datetime.now())]
+
+            if event.recognition:
+                # Use speech recognition result as plain text
+                yiri_msg_list.append(platform_message.Plain(text=event.recognition))
+            elif bot is not None and event.media_id:
+                # Download voice file and send as File message
+                try:
+                    voice_bytes = await bot.download_voice(event.media_id)
+                    audio_fmt = event.format.lower() if event.format else 'amr'
+                    voice_b64 = base64.b64encode(voice_bytes).decode('utf-8')
+                    yiri_msg_list.append(
+                        platform_message.File(
+                            base64=f'data:audio/{audio_fmt};base64,{voice_b64}',
+                            name=f'{event.media_id}.{audio_fmt}',
+                        )
+                    )
+                except Exception:
+                    traceback.print_exc()
+                    return None
+            else:
+                return None
+
+            yiri_chain = platform_message.MessageChain(yiri_msg_list)
 
             return platform_events.FriendMessage(
                 sender=friend,
@@ -127,12 +166,13 @@ class OfficialAccountAdapter(abstract_platform_adapter.AbstractMessagePlatformAd
         async def on_message(event: OAEvent):
             self.bot_account_id = event.receiver_id
             try:
-                return await callback(await self.event_converter.target2yiri(event), self)
+                return await callback(await self.event_converter.target2yiri(event, self.bot), self)
             except Exception:
                 await self.logger.error(f'Error in officialaccount callback: {traceback.format_exc()}')
 
         if event_type == platform_events.FriendMessage:
             self.bot.on_message('text')(on_message)
+            self.bot.on_message('voice')(on_message)
         elif event_type == platform_events.GroupMessage:
             pass
 
