@@ -7,6 +7,7 @@ from quart import Quart, request
 import hashlib
 from typing import Callable
 from langbot.libs.official_account_api.oaevent import OAEvent
+import aiohttp
 
 import asyncio
 
@@ -165,9 +166,51 @@ class OAClient:
             'MsgType': root.find('MsgType').text,
             'Content': root.find('Content').text if root.find('Content') is not None else None,
             'MsgId': int(root.find('MsgId').text) if root.find('MsgId') is not None else None,
+            'MediaId': root.find('MediaId').text if root.find('MediaId') is not None else None,
+            'Format': root.find('Format').text if root.find('Format') is not None else None,
+            'Recognition': root.find('Recognition').text if root.find('Recognition') is not None else None,
         }
 
         return message_data
+
+    async def get_access_token(self) -> str:
+        """Get WeChat Official Account access_token, automatically refresh when expired."""
+        if self.access_token and self.access_token_expiry_time and time.time() < self.access_token_expiry_time:
+            return self.access_token
+
+        url = f'{self.base_url}/cgi-bin/token'
+        params = {
+            'grant_type': 'client_credential',
+            'appid': self.appid,
+            'secret': self.appsecret,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                data = await resp.json(content_type=None)
+                if 'errcode' in data and data['errcode'] != 0:
+                    raise Exception(f'Failed to get access_token: {data}')
+                self.access_token = data['access_token']
+                self.access_token_expiry_time = time.time() + data['expires_in'] - 60
+                return self.access_token
+
+    async def build_download_voice_url(self, media_id: str) -> str:
+        """构建下载语音文件的 URL，供前端直接下载使用。"""
+        access_token = await self.get_access_token()
+        url = f'{self.base_url}/cgi-bin/media/get?access_token={access_token}&media_id={media_id}'
+        return url
+
+    async def download_voice(self, media_id: str) -> bytes:
+        """Download voice media file and return raw bytes."""
+        access_token = await self.get_access_token()
+        url = f'{self.base_url}/cgi-bin/media/get'
+        params = {'access_token': access_token, 'media_id': media_id}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                content_type = resp.headers.get('Content-Type', '')
+                if 'application/json' in content_type:
+                    error_data = await resp.json(content_type=None)
+                    raise Exception(f'Failed to download voice: {error_data}')
+                return await resp.read()
 
     async def run_task(self, host: str, port: int, *args, **kwargs):
         """
@@ -353,9 +396,45 @@ class OAClientForLongerResponse:
             'MsgType': root.find('MsgType').text,
             'Content': root.find('Content').text if root.find('Content') is not None else None,
             'MsgId': int(root.find('MsgId').text) if root.find('MsgId') is not None else None,
+            'MediaId': root.find('MediaId').text if root.find('MediaId') is not None else None,
+            'Format': root.find('Format').text if root.find('Format') is not None else None,
+            'Recognition': root.find('Recognition').text if root.find('Recognition') is not None else None,
         }
 
         return message_data
+
+    async def get_access_token(self) -> str:
+        """Get WeChat Official Account access_token, automatically refresh when expired."""
+        if self.access_token and self.access_token_expiry_time and time.time() < self.access_token_expiry_time:
+            return self.access_token
+
+        url = f'{self.base_url}/cgi-bin/token'
+        params = {
+            'grant_type': 'client_credential',
+            'appid': self.appid,
+            'secret': self.appsecret,
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                data = await resp.json(content_type=None)
+                if 'errcode' in data and data['errcode'] != 0:
+                    raise Exception(f'Failed to get access_token: {data}')
+                self.access_token = data['access_token']
+                self.access_token_expiry_time = time.time() + data['expires_in'] - 60
+                return self.access_token
+
+    async def download_voice(self, media_id: str) -> bytes:
+        """Download voice media file and return raw bytes."""
+        access_token = await self.get_access_token()
+        url = f'{self.base_url}/cgi-bin/media/get'
+        params = {'access_token': access_token, 'media_id': media_id}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                content_type = resp.headers.get('Content-Type', '')
+                if 'application/json' in content_type:
+                    error_data = await resp.json(content_type=None)
+                    raise Exception(f'Failed to download voice: {error_data}')
+                return await resp.read()
 
     async def run_task(self, host: str, port: int, *args, **kwargs):
         """
